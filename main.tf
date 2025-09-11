@@ -73,7 +73,7 @@ resource "azurerm_site_recovery_fabric" "fabric" {
     }
   }
 
-  name                = var.azurerm_site_recovery_fabric_name != null ? "asr-a2a-default-${each.value.region}" : var.azurerm_site_recovery_fabric_name[each.value.region_key]
+  name                = var.azurerm_site_recovery_fabric_name != null ? var.azurerm_site_recovery_fabric_name[each.value.region_key] : "asr-a2a-default-${each.value.region}"
   resource_group_name = var.recovery_services_vault_resource_group_name
   recovery_vault_name = local.recovery_services_vault_name
   location            = each.value.region
