@@ -8,13 +8,9 @@ locals {
     source = replace(var.source_location, " ", "-")
     target = replace(var.target_location, " ", "-")
   }
-}
 
-locals {
-  recovery_services_vault_name    = var.recovery_services_vault_creation_enabled ? azurerm_recovery_services_vault.vault[0].name : var.recovery_services_vault_name
-  capacity_reservation_group_name = var.capacity_reservation_group_name != "" ? var.capacity_reservation_group_name : "crg-${random_string.unique_suffix[0].result}"
-}
-locals {
+  recovery_services_vault_name = var.recovery_services_vault_creation_enabled ? azurerm_recovery_services_vault.vault[0].name : var.recovery_services_vault_name
+
   network_mapping_names = { for vm_name in keys(var.replicated_virtual_machines) : vm_name => "${vm_name}-network-mapping" }
 }
 
@@ -28,7 +24,7 @@ data "azurerm_subscription" "current" {}
 data "azapi_client_config" "current" {}
 
 resource "random_string" "unique_suffix" {
-  count = var.capacity_reservation_group_name == "" ? 1 : 0
+  count   = var.capacity_reservation_group_creation_enabled ? 1 : 0
   length  = 8
   numeric = true
   special = false
@@ -161,7 +157,7 @@ resource "azurerm_site_recovery_network_mapping" "network_mapping" {
 resource "azurerm_capacity_reservation_group" "shared_cr_group" {
   count = var.capacity_reservation_group_creation_enabled == true ? 1 : 0
 
-  name                = local.capacity_reservation_group_name
+  name                = coalesce(var.capacity_reservation_group_name, "crg-${random_string.unique_suffix[0].result}")
   location            = var.target_location
   resource_group_name = var.recovery_services_vault_resource_group_name
   tags                = var.tags

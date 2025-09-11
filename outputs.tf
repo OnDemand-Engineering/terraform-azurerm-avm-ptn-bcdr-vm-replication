@@ -64,7 +64,7 @@ output "network_mapping_names" {
 
 output "capacity_reservation_group_name" {
   description = "The name of the capacity reservation group."
-  value       = local.capacity_reservation_group_name
+  value       = coalesce(var.capacity_reservation_group_name, "crg-${random_string.unique_suffix[0].result}")
 }
 
 output "shared_capacity_reservation_group_id" {
