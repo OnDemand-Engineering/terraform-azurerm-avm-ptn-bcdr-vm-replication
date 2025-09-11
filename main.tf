@@ -106,7 +106,7 @@ resource "azurerm_site_recovery_protection_container_mapping" "mapping" {
   recovery_fabric_name                      = azurerm_site_recovery_fabric.fabric[local.region.source].name
   recovery_source_protection_container_name = azurerm_site_recovery_protection_container.source.name
   recovery_target_protection_container_id   = azurerm_site_recovery_protection_container.target.id
-  recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy[each.value.replication_policy_name].id
+  recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy[each.value.name].id
 
   dynamic "automatic_update" {
     for_each = var.automatic_update ? [1] : []
