@@ -75,7 +75,7 @@ output "shared_capacity_reservation_group_id" {
 
 output "replicated_vm_names" {
   description = "A map containing VM names and their associated replicated VM names."
-  value       = { for vm_name, vm in var.replicated_virtual_machines : vm_name => "${vm_name}-${random_string.unique_suffix.result}" }
+  value       = { for vm_name, vm in var.replicated_virtual_machines : vm_name => vm_name }
 }
 
 output "storage_account_name" {
