@@ -34,10 +34,10 @@ variable "recovery_services_vault_name" {
 
 variable "azurerm_site_recovery_fabric_name" {
   description = "Name for the fabric to ensure uniqueness."
-  type = optional(object({
+  type = object({
     source = string
     target = string
-  }))
+  })
   default = null
 
   validation {
@@ -48,10 +48,10 @@ variable "azurerm_site_recovery_fabric_name" {
 
 variable "azurerm_site_recovery_protection_container" {
   description = "Name for the fabric to ensure uniqueness."
-  type = optional(object({
+  type = object({
     source = string
     target = string
-  }))
+  })
   default = {
     source = "primary-protection-container"
     target = "secondary-protection-container"
@@ -117,6 +117,7 @@ variable "replicated_virtual_machines" {
     test_network_id                           = optional(string)
     multi_vm_group_name                       = optional(string)
   }))
+  default = {}
 }
 
 # Capacity Reservation Group Configuration
@@ -171,6 +172,7 @@ variable "storage_account_creation_enabled" {
 variable "storage_account_name" {
   description = "The name of the storage account to use for staging."
   type        = string
+  default     = null
 
   validation {
     condition     = var.storage_account_creation_enabled == false || (var.storage_account_creation_enabled == true && length(var.storage_account_name) >= 3 && length(var.storage_account_name) <= 24 && can(regex("^[a-z0-9]+$", var.storage_account_name)))

@@ -13,8 +13,8 @@ resource "azurerm_virtual_network" "source_vnet" {
   address_space       = ["10.0.0.0/16"]
 
   subnet {
-    name           = "source-subnet"
-    address_prefix = "10.0.1.0/24"
+    name             = "source-subnet"
+    address_prefixes = ["10.0.1.0/24"]
   }
 }
 
@@ -92,9 +92,9 @@ resource "azurerm_virtual_network" "target_vnet" {
   address_space       = ["10.1.0.0/16"]
 
   subnet {
-    name           = "target-subnet"
-    address_prefix = "10.1.1.0/24"
-    security_group = azurerm_network_security_group.target_nsg.id
+    name             = "target-subnet"
+    address_prefixes = ["10.1.1.0/24"]
+    security_group   = azurerm_network_security_group.target_nsg.id
   }
   provider = azurerm.target
 }
@@ -121,33 +121,36 @@ locals {
 module "avm_bcdr_replication" {
   source = "../../."
 
-  # Name of the resource group where the vault that should be updated is located.
-  target_resource_group_name = azurerm_resource_group.target.name
-
   # Regions
   source_location = var.source_location
   target_location = var.target_location
 
   # Deploy a new Recovery Services Vault
-  use_existing_vault        = false # This example assumes we're creating a new vault for the example, the vault should exist in the target resource group if true
-  vault_name                = "avm-recovery-vault"
-  vault_resource_group_name = azurerm_resource_group.target.name
+  recovery_services_vault_creation_enabled    = false # This example assumes we're creating a new vault for the example, the vault should exist in the target resource group if true
+  recovery_services_vault_name                = "avm-recovery-vault"
+  recovery_services_vault_resource_group_name = azurerm_resource_group.target.name
 
 
   # Recovery Policy Configuration
-  recovery_point_retention_in_minutes                  = 24 * 60
-  application_consistent_snapshot_frequency_in_minutes = 4 * 60
+  virtual_machine_replication_policies = [
+    {
+      name                                                 = "24-hour-retention-policy"
+      recovery_point_retention_in_minutes                  = 24 * 60
+      application_consistent_snapshot_frequency_in_minutes = 4 * 60
+    }
+  ]
+  storage_account_creation_enabled = true
 
   # Source Virtual Machine (source)
-
-  replicated_vms = {
+  replicated_virtual_machines = {
 
     "vm01" = {
 
-      vm_id                    = azurerm_linux_virtual_machine.source_vm.id
-      target_resource_group_id = azurerm_resource_group.target.id # Id of resource group where the VM should be created when a failover is done.
-      source_network_id        = azurerm_virtual_network.source_vnet.id
-      target_network_id        = azurerm_virtual_network.target_vnet.id
+      virtual_machine_resource_id = azurerm_linux_virtual_machine.source_vm.id
+      replication_policy_name     = "24-hour-retention-policy"
+      target_resource_group_id    = azurerm_resource_group.target.id # Id of resource group where the VM should be created when a failover is done.
+      source_network_id           = azurerm_virtual_network.source_vnet.id
+      target_network_id           = azurerm_virtual_network.target_vnet.id
 
       managed_disks = [
         {
@@ -174,10 +177,6 @@ module "avm_bcdr_replication" {
   # Tagging
   tags = {
     "Environment" = "Test"
-  }
-
-  providers = {
-    azurerm.target = azurerm.target
   }
 
   depends_on = [azurerm_managed_disk.source_managed_disk, azurerm_resource_group.target]

@@ -11,7 +11,7 @@ locals {
 }
 
 locals {
-  vault_name                      = var.recovery_services_vault_creation_enabled ? azurerm_recovery_services_vault.vault[0].name : var.recovery_services_vault_name
+  recovery_services_vault_name    = var.recovery_services_vault_creation_enabled ? azurerm_recovery_services_vault.vault[0].name : var.recovery_services_vault_name
   capacity_reservation_group_name = var.capacity_reservation_group_name != "" ? var.capacity_reservation_group_name : "crg-${random_string.unique_suffix.result}"
 }
 locals {
@@ -43,13 +43,12 @@ resource "random_string" "unique_suffix" {
 # recovery services vault
 resource "azurerm_recovery_services_vault" "vault" {
   count = var.recovery_services_vault_creation_enabled ? 1 : 0
-  name  = local.vault_name
+  name  = var.recovery_services_vault_name
 
   location            = var.target_location
   resource_group_name = var.recovery_services_vault_resource_group_name
   sku                 = "Standard"
   tags                = var.tags
-  provider            = azurerm.target
 }
 
 # replication policies
@@ -58,71 +57,61 @@ resource "azurerm_site_recovery_replication_policy" "policy" {
     for replication_policy in var.virtual_machine_replication_policies : replication_policy.name => replication_policy
   }
 
-  provider = azurerm.target
-
   name                                                 = each.value.name
   resource_group_name                                  = var.recovery_services_vault_resource_group_name
-  recovery_vault_name                                  = local.vault_name
+  recovery_vault_name                                  = local.recovery_services_vault_name
   recovery_point_retention_in_minutes                  = 60 * 24 * each.value.recovery_point_retention_in_days
   application_consistent_snapshot_frequency_in_minutes = 60 * each.value.application_consistent_snapshot_frequency_in_hours
 }
 
 # fabric
 resource "azurerm_site_recovery_fabric" "fabric" {
-
-  foreach = {
-    for region_key, region in distinct(local.region) : region.value => region.value
+  for_each = {
+    for region_key, region in distinct([local.region.source, local.region.target]) : region.value => {
+      region_key = region_key
+      region     = region.value
+    }
   }
 
-  provider = azurerm.target
-
-  name                = var.azurerm_site_recovery_fabric_name != null ? "asr-a2a-default-${each.value}" : var.azurerm_site_recovery_fabric_name[region.key]
+  name                = var.azurerm_site_recovery_fabric_name != null ? "asr-a2a-default-${each.value}" : var.azurerm_site_recovery_fabric_name[each.value.region_key]
   resource_group_name = var.recovery_services_vault_resource_group_name
-  recovery_vault_name = local.vault_name
-  location            = each.value
-
+  recovery_vault_name = local.recovery_services_vault_name
+  location            = each.value.region
 }
 
 # protection containers
 resource "azurerm_site_recovery_protection_container" "source" {
-  provider = azurerm.target
-
   name                 = var.azurerm_site_recovery_protection_container.source
   resource_group_name  = var.recovery_services_vault_resource_group_name
-  recovery_vault_name  = local.vault_name
+  recovery_vault_name  = local.recovery_services_vault_name
   recovery_fabric_name = azurerm_site_recovery_fabric.fabric[local.region.source].name
-
 }
 
 resource "azurerm_site_recovery_protection_container" "target" {
-  provider = azurerm.target
-
   name                 = var.azurerm_site_recovery_protection_container.target
   resource_group_name  = var.recovery_services_vault_resource_group_name
-  recovery_vault_name  = local.vault_name
+  recovery_vault_name  = local.recovery_services_vault_name
   recovery_fabric_name = azurerm_site_recovery_fabric.fabric[local.region.target].name
 }
 
 # protection container mapping
 resource "azurerm_site_recovery_protection_container_mapping" "mapping" {
-  provider = azurerm.target
-
   for_each = {
     for replication_policy in var.virtual_machine_replication_policies : replication_policy.name => replication_policy
   }
 
   name                                      = "${local.region.source}-${local.region.target}-${each.value.name}"
   resource_group_name                       = var.recovery_services_vault_resource_group_name
-  recovery_vault_name                       = local.vault_name
-  recovery_fabric_name                      = azurerm_site_recovery_fabric.source.name
+  recovery_vault_name                       = local.recovery_services_vault_name
+  recovery_fabric_name                      = azurerm_site_recovery_fabric.fabric[local.region.source].name
   recovery_source_protection_container_name = azurerm_site_recovery_protection_container.source.name
   recovery_target_protection_container_id   = azurerm_site_recovery_protection_container.target.id
-  recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy.id
+  recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy[each.value.replication_policy_name].id
 
   dynamic "automatic_update" {
     for_each = var.automatic_update ? [1] : []
     content {
-      enabled               = var.aautomatic_update
+      enabled               = var.automatic_update
       automation_account_id = var.automation_account_id
       authentication_type   = "SystemAssignedIdentity"
     }
@@ -142,8 +131,6 @@ resource "random_string" "storage_account_name" {
 resource "azurerm_storage_account" "staging" {
   count = var.storage_account_creation_enabled ? 1 : 0
 
-  provider = azurerm.target
-
   name                     = coalesce(var.storage_account_name, "sa${random_string.storage_account_name[0].result}")
   resource_group_name      = coalesce(var.storage_account_resource_group_name, var.recovery_services_vault_resource_group_name)
   location                 = var.source_location
@@ -158,11 +145,10 @@ resource "azurerm_site_recovery_network_mapping" "network_mapping" {
   name                        = local.network_mapping_names[count.index]
   resource_group_name         = azurerm_recovery_services_vault.vault[0].resource_group_name
   recovery_vault_name         = azurerm_recovery_services_vault.vault[0].name
-  source_recovery_fabric_name = azurerm_site_recovery_fabric.source.name
-  target_recovery_fabric_name = azurerm_site_recovery_fabric.target.name
-  source_network_id           = var.replicated_vms[local.network_mapping_names[count.index]].source_network_id
-  target_network_id           = var.replicated_vms[local.network_mapping_names[count.index]].target_network_id
-  provider                    = azurerm.target
+  source_recovery_fabric_name = azurerm_site_recovery_fabric.fabric[local.region.source].name
+  target_recovery_fabric_name = azurerm_site_recovery_fabric.fabric[local.region.target].name
+  source_network_id           = var.replicated_virtual_machines[local.network_mapping_names[count.index]].source_network_id
+  target_network_id           = var.replicated_virtual_machines[local.network_mapping_names[count.index]].target_network_id
 }
 
 ########################################################
@@ -177,7 +163,6 @@ resource "azurerm_capacity_reservation_group" "shared_cr_group" {
   name                = local.capacity_reservation_group_name
   location            = var.target_location
   resource_group_name = var.recovery_services_vault_resource_group_name
-  provider            = azurerm.target
   tags                = var.tags
 }
 
@@ -192,8 +177,7 @@ resource "azurerm_capacity_reservation" "per_vm" {
     capacity = 1
   }
 
-  tags     = var.tags
-  provider = azurerm.target
+  tags = var.tags
 }
 
 ########################################################
@@ -206,11 +190,9 @@ resource "azurerm_capacity_reservation" "per_vm" {
 resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
   for_each = var.replicated_virtual_machines
 
-  provider = azurerm.target
-
   name                                      = "${each.key}--${random_string.unique_suffix.result}"
   resource_group_name                       = azurerm_recovery_services_vault.vault[0].resource_group_name
-  recovery_vault_name                       = local.vault_name
+  recovery_vault_name                       = local.recovery_services_vault_name
   source_recovery_fabric_name               = azurerm_site_recovery_fabric.fabric[local.region.source].name
   source_vm_id                              = each.value.virtual_machine_resource_id
   recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy[each.value.replication_policy_name].id
@@ -264,6 +246,3 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
 
   depends_on = [azurerm_site_recovery_network_mapping.network_mapping]
 }
-
-
-

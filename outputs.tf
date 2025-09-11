@@ -16,7 +16,7 @@ output "region_target" {
 
 output "vault_name" {
   description = "The name of the recovery services vault."
-  value       = local.vault_name
+  value       = local.recovery_services_vault_name
 }
 
 output "site_recovery_fabric_name_source" {
@@ -80,7 +80,7 @@ output "replicated_vm_names" {
 
 output "storage_account_name" {
   description = "The name of the staging storage account for replication."
-  value       = azurerm_storage_account.staging.name
+  value       = coalesce(var.storage_account_name, "sa${random_string.storage_account_name[0].result}")
 }
 
 output "replicated_vms_info" {
