@@ -67,13 +67,13 @@ resource "azurerm_site_recovery_replication_policy" "policy" {
 # fabric
 resource "azurerm_site_recovery_fabric" "fabric" {
   for_each = {
-    for region_key, region in distinct([local.region.source, local.region.target]) : region.value => {
+    for region_key, region in distinct([local.region.source, local.region.target]) : region => {
       region_key = region_key
-      region     = region.value
+      region     = region
     }
   }
 
-  name                = var.azurerm_site_recovery_fabric_name != null ? "asr-a2a-default-${each.value}" : var.azurerm_site_recovery_fabric_name[each.value.region_key]
+  name                = var.azurerm_site_recovery_fabric_name != null ? "asr-a2a-default-${each.value.region}" : var.azurerm_site_recovery_fabric_name[each.value.region_key]
   resource_group_name = var.recovery_services_vault_resource_group_name
   recovery_vault_name = local.recovery_services_vault_name
   location            = each.value.region

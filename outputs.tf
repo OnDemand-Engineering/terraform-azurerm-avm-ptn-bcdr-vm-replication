@@ -80,7 +80,7 @@ output "replicated_vm_names" {
 
 output "storage_account_name" {
   description = "The name of the staging storage account for replication."
-  value       = coalesce(var.storage_account_name, "sa${random_string.storage_account_name[0].result}")
+  value       = var.storage_account_creation_enabled ? "sa${random_string.storage_account_name[0].result}" : var.storage_account_name
 }
 
 output "replicated_vms_info" {
