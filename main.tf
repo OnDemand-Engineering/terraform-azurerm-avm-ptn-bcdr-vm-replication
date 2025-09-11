@@ -12,7 +12,7 @@ locals {
 
 locals {
   recovery_services_vault_name    = var.recovery_services_vault_creation_enabled ? azurerm_recovery_services_vault.vault[0].name : var.recovery_services_vault_name
-  capacity_reservation_group_name = var.capacity_reservation_group_name != "" ? var.capacity_reservation_group_name : "crg-${random_string.unique_suffix.result}"
+  capacity_reservation_group_name = var.capacity_reservation_group_name != "" ? var.capacity_reservation_group_name : "crg-${random_string.unique_suffix[0].result}"
 }
 locals {
   network_mapping_names = { for vm_name in keys(var.replicated_virtual_machines) : vm_name => "${vm_name}-network-mapping" }
@@ -28,6 +28,7 @@ data "azurerm_subscription" "current" {}
 data "azapi_client_config" "current" {}
 
 resource "random_string" "unique_suffix" {
+  count = var.capacity_reservation_group_name == "" ? 1 : 0
   length  = 8
   numeric = true
   special = false
@@ -169,7 +170,7 @@ resource "azurerm_capacity_reservation_group" "shared_cr_group" {
 
 resource "azurerm_capacity_reservation" "per_vm" {
   for_each                      = { for vm in var.replicated_virtual_machines : vm.key => vm.virtual_machine_resource_id if vm.capacity_reservation_creation_enabled == true }
-  name                          = "${each.key}-capacity-reservation--${random_string.unique_suffix.result}"
+  name                          = "${each.key}-capacity-reservation"
   capacity_reservation_group_id = var.existing_capacity_reservation_group_id != "" ? var.existing_capacity_reservation_group_id : azurerm_capacity_reservation_group.shared_cr_group[0].id
 
   sku {
@@ -190,7 +191,7 @@ resource "azurerm_capacity_reservation" "per_vm" {
 resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
   for_each = var.replicated_virtual_machines
 
-  name                                      = "${each.key}--${random_string.unique_suffix.result}"
+  name                                      = each.key
   resource_group_name                       = azurerm_recovery_services_vault.vault[0].resource_group_name
   recovery_vault_name                       = local.recovery_services_vault_name
   source_recovery_fabric_name               = azurerm_site_recovery_fabric.fabric[local.region.source].name
