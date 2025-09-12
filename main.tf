@@ -188,7 +188,7 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
   for_each = var.replicated_virtual_machines
 
   name                                      = each.key
-  resource_group_name                       = azurerm_recovery_services_vault.vault[0].resource_group_name
+  resource_group_name                       = var.recovery_services_vault_resource_group_name
   recovery_vault_name                       = local.recovery_services_vault_name
   source_recovery_fabric_name               = azurerm_site_recovery_fabric.fabric[local.region.source].name
   source_vm_id                              = each.value.virtual_machine_resource_id
