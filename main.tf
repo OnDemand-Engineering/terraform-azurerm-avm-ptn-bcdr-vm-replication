@@ -213,7 +213,7 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
 
     content {
       disk_id                       = managed_disk.value.disk_id
-      staging_storage_account_id    = var.storage_account_creation_enabled ? azurerm_storage_account.staging[0].id : provider::azapi::build_resource_id("/subscriptions/${data.azapi_client_config.current.subscription_id}", "Microsoft.Storage/storageAccounts", var.storage_account_name)
+      staging_storage_account_id    = var.storage_account_creation_enabled ? azurerm_storage_account.staging[0].id : provider::azapi::build_resource_id("/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${coalesce(var.storage_account_resource_group_name, var.recovery_services_vault_resource_group_name)}", "Microsoft.Storage/storageAccounts", var.storage_account_name)
       target_resource_group_id      = each.value.target_resource_group_id
       target_disk_type              = managed_disk.value.disk_type
       target_replica_disk_type      = managed_disk.value.replica_disk_type
