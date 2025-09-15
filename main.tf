@@ -184,54 +184,103 @@ resource "azurerm_capacity_reservation" "per_vm" {
 #######################################################
 
 
-resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
-  for_each = var.replicated_virtual_machines
+# resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
+#   for_each = var.replicated_virtual_machines
 
-  name                                      = each.key
-  resource_group_name                       = var.recovery_services_vault_resource_group_name
-  recovery_vault_name                       = local.recovery_services_vault_name
-  source_recovery_fabric_name               = azurerm_site_recovery_fabric.fabric[local.region.source].name
-  source_vm_id                              = each.value.virtual_machine_resource_id
-  recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy[each.value.replication_policy_name].id
-  target_resource_group_id                  = each.value.target_resource_group_id
-  target_recovery_fabric_id                 = azurerm_site_recovery_fabric.fabric[local.region.target].id
-  target_recovery_protection_container_id   = azurerm_site_recovery_protection_container.target.id
-  source_recovery_protection_container_name = azurerm_site_recovery_protection_container.source.name
-  target_capacity_reservation_group_id      = each.value.capacity_reservation_creation_enabled == true ? azurerm_capacity_reservation.per_vm[each.key].capacity_reservation_group_id : null
-  target_availability_set_id                = each.value.target_availability_set_id
-  target_zone                               = each.value.target_zone
-  target_edge_zone                          = each.value.target_edge_zone
-  target_network_id                         = each.value.target_network_id
-  target_proximity_placement_group_id       = each.value.target_proximity_placement_group_id
-  target_boot_diagnostic_storage_account_id = each.value.target_boot_diagnostic_storage_account_id
-  target_virtual_machine_scale_set_id       = each.value.target_virtual_machine_scale_set_id
-  test_network_id                           = each.value.test_network_id
-  multi_vm_group_name                       = each.value.multi_vm_group_name
+#   name                                      = each.key
+#   resource_group_name                       = var.recovery_services_vault_resource_group_name
+#   recovery_vault_name                       = local.recovery_services_vault_name
+#   source_recovery_fabric_name               = azurerm_site_recovery_fabric.fabric[local.region.source].name
+#   source_vm_id                              = each.value.virtual_machine_resource_id
+#   recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy[each.value.replication_policy_name].id
+#   target_resource_group_id                  = each.value.target_resource_group_id
+#   target_recovery_fabric_id                 = azurerm_site_recovery_fabric.fabric[local.region.target].id
+#   target_recovery_protection_container_id   = azurerm_site_recovery_protection_container.target.id
+#   source_recovery_protection_container_name = azurerm_site_recovery_protection_container.source.name
+#   target_capacity_reservation_group_id      = each.value.capacity_reservation_creation_enabled == true ? azurerm_capacity_reservation.per_vm[each.key].capacity_reservation_group_id : null
+#   target_availability_set_id                = each.value.target_availability_set_id
+#   target_zone                               = each.value.target_zone
+#   target_edge_zone                          = each.value.target_edge_zone
+#   target_network_id                         = each.value.target_network_id
+#   target_proximity_placement_group_id       = each.value.target_proximity_placement_group_id
+#   target_boot_diagnostic_storage_account_id = each.value.target_boot_diagnostic_storage_account_id
+#   target_virtual_machine_scale_set_id       = each.value.target_virtual_machine_scale_set_id
+#   test_network_id                           = each.value.test_network_id
+#   multi_vm_group_name                       = each.value.multi_vm_group_name
 
-  dynamic "managed_disk" {
-    for_each = { for disk in each.value.managed_disks : disk.disk_id => disk }
+#   dynamic "managed_disk" {
+#     for_each = { for disk in each.value.managed_disks : disk.disk_id => disk }
 
-    content {
-      disk_id                       = managed_disk.value.disk_id
-      staging_storage_account_id    = var.storage_account_creation_enabled ? azurerm_storage_account.staging[0].id : provider::azapi::build_resource_id("/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${coalesce(var.storage_account_resource_group_name, var.recovery_services_vault_resource_group_name)}", "Microsoft.Storage/storageAccounts", var.storage_account_name)
-      target_resource_group_id      = each.value.target_resource_group_id
-      target_disk_type              = managed_disk.value.disk_type
-      target_replica_disk_type      = managed_disk.value.replica_disk_type
-      target_disk_encryption_set_id = managed_disk.value.target_disk_encryption_set_id
-    }
-  }
+#     content {
+#       disk_id                       = managed_disk.value.disk_id
+#       staging_storage_account_id    = var.storage_account_creation_enabled ? azurerm_storage_account.staging[0].id : provider::azapi::build_resource_id("/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${coalesce(var.storage_account_resource_group_name, var.recovery_services_vault_resource_group_name)}", "Microsoft.Storage/storageAccounts", var.storage_account_name)
+#       target_resource_group_id      = each.value.target_resource_group_id
+#       target_disk_type              = managed_disk.value.disk_type
+#       target_replica_disk_type      = managed_disk.value.replica_disk_type
+#       target_disk_encryption_set_id = managed_disk.value.target_disk_encryption_set_id
+#     }
+#   }
 
-  dynamic "network_interface" {
-    for_each = { for nic in each.value.network_interfaces : nic.network_interface_id => nic }
+#   dynamic "network_interface" {
+#     for_each = { for nic in each.value.network_interfaces : nic.network_interface_id => nic }
 
-    content {
-      source_network_interface_id        = network_interface.value.network_interface_id
-      target_subnet_name                 = network_interface.value.target_subnet_name
-      target_static_ip                   = network_interface.value.target_static_ip
-      recovery_public_ip_address_id      = network_interface.value.recovery_public_ip_address_id
-      failover_test_static_ip            = network_interface.value.failover_test_static_ip
-      failover_test_subnet_name          = network_interface.value.failover_test_subnet_name
-      failover_test_public_ip_address_id = network_interface.value.failover_test_public_ip_address_id
+#     content {
+#       source_network_interface_id        = network_interface.value.network_interface_id
+#       target_subnet_name                 = network_interface.value.target_subnet_name
+#       target_static_ip                   = network_interface.value.target_static_ip
+#       recovery_public_ip_address_id      = network_interface.value.recovery_public_ip_address_id
+#       failover_test_static_ip            = network_interface.value.failover_test_static_ip
+#       failover_test_subnet_name          = network_interface.value.failover_test_subnet_name
+#       failover_test_public_ip_address_id = network_interface.value.failover_test_public_ip_address_id
+#     }
+#   }
+
+#   timeouts {
+#     create = "5h30m"
+#     update = "2h"
+#     delete = "20m"
+#   }
+
+#   depends_on = [azurerm_site_recovery_network_mapping.network_mapping]
+# }
+
+resource "azapi_resource" "replicated_vm" {
+  type                      = "Microsoft.RecoveryServices/vaults/replicationFabrics/replicationProtectionContainers/replicationProtectedItems@2025-02-01"
+  schema_validation_enabled = false
+  for_each                  = var.replicated_virtual_machines
+
+  name      = each.key
+  parent_id = azurerm_site_recovery_protection_container.source.id
+  body = {
+    properties = {
+      policyId          = azurerm_site_recovery_replication_policy.policy[each.value.replication_policy_name].id
+      protectableItemId = each.value.virtual_machine_resource_id
+      providerSpecificDetails = {
+        instanceType                       = "A2A"
+        autoProtectionOfDataDisk           = each.value.auto_protection_of_data_disk
+        fabricObjectId                     = azurerm_site_recovery_fabric.fabric[local.region.source].id
+        churnOptionSelected                = each.value.churn_option_selected
+        multiVmGroupName                   = each.value.multi_vm_group_name
+        recoveryAvailabilitySetId          = each.value.target_availability_set_id
+        recoveryAvailabilityZone           = each.value.target_zone
+        recoveryAzureNetworkId             = each.value.target_network_id
+        recoveryBootDiagStorageAccountId   = each.value.target_boot_diagnostic_storage_account_id
+        recoveryCapacityReservationGroupId = each.value.capacity_reservation_creation_enabled == true ? azurerm_capacity_reservation.per_vm[each.key].capacity_reservation_group_id : null
+        recoveryContainerId                = azurerm_site_recovery_fabric.fabric[local.region.target].id
+        recoveryProximityPlacementGroupId  = each.value.target_proximity_placement_group_id
+        recoveryResourceGroupId            = each.value.target_resource_group_id
+        recoverySubnetName                 = each.value.target_subnet_name
+        recoveryVirtualMachineScaleSetId   = each.value.target_virtual_machine_scale_set_id
+        vmManagedDisks = [
+          for disk in each.value.managed_disks : {
+            diskId                              = disk.disk_id
+            primaryStagingAzureStorageAccountId = var.storage_account_creation_enabled ? azurerm_storage_account.staging[0].id : provider::azapi::build_resource_id("/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${coalesce(var.storage_account_resource_group_name, var.recovery_services_vault_resource_group_name)}", "Microsoft.Storage/storageAccounts", var.storage_account_name)
+            recoveryResourceGroupId             = each.value.target_resource_group_id
+            recoveryReplicaDiskAccountType      = disk.replica_disk_type
+            recoveryTargetDiskAccountType       = disk.disk_type
+          }
+        ]
+      }
     }
   }
 

@@ -85,25 +85,19 @@ variable "virtual_machine_replication_policies" {
 variable "replicated_virtual_machines" {
   description = "A map of virtual machines to replicate, with their corresponding configuration."
   type = map(object({
-    virtual_machine_resource_id = string
-    replication_policy_name     = string
-    target_resource_group_id    = string
-    source_network_id           = string
-    target_network_id           = string
+    virtual_machine_resource_id  = string
+    replication_policy_name      = string
+    target_resource_group_id     = string
+    source_network_id            = string
+    target_network_id            = string
+    target_subnet_name = string
+    churn_option_selected        = optional(string, "Normal")
+    auto_protection_of_data_disk = optional(string, "Enabled")
     managed_disks = list(object({
       disk_id                       = string
       disk_type                     = string
       replica_disk_type             = string
       target_disk_encryption_set_id = optional(string)
-    }))
-    network_interfaces = list(object({
-      network_interface_id               = string
-      target_subnet_name                 = string
-      target_static_ip                   = optional(string)
-      recovery_public_ip_address_id      = optional(string)
-      failover_test_static_ip            = optional(string)
-      failover_test_subnet_name          = optional(string)
-      failover_test_public_ip_address_id = optional(string)
     }))
     capacity_reservation_creation_enabled     = optional(bool)
     capacity_reservation_sku                  = optional(string)

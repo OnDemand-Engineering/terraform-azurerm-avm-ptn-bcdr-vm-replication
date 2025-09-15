@@ -87,8 +87,8 @@ output "replicated_vms_info" {
   description = "Information about the replicated VMs."
   value = [for vm_name in keys(var.replicated_virtual_machines) : {
     vm_name                              = vm_name
-    replicated_vm_id                     = azurerm_site_recovery_replicated_vm.replicated_vm[vm_name].id
-    target_capacity_reservation_group_id = azurerm_site_recovery_replicated_vm.replicated_vm[vm_name].target_capacity_reservation_group_id
+    replicated_vm_id                     = azapi_resource.replicated_vm[vm_name].id
+    target_capacity_reservation_group_id = azapi_resource.replicated_vm[vm_name].target_capacity_reservation_group_id
   }]
 }
 
