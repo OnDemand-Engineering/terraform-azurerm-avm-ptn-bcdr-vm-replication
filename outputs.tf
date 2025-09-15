@@ -88,7 +88,7 @@ output "replicated_vms_info" {
   value = [for vm_name in keys(var.replicated_virtual_machines) : {
     vm_name                              = vm_name
     replicated_vm_id                     = azapi_resource.replicated_vm[vm_name].id
-    target_capacity_reservation_group_id = azapi_resource.replicated_vm[vm_name].target_capacity_reservation_group_id
+    target_capacity_reservation_group_id = azapi_resource.replicated_vm[vm_name].recoveryCapacityReservationGroupId
   }]
 }
 
