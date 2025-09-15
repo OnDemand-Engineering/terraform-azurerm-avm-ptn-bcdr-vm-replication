@@ -98,7 +98,7 @@ variable "replicated_virtual_machines" {
       disk_type                     = string
       replica_disk_type             = string
       target_disk_encryption_set_id = optional(string)
-    })), [])
+    })), null)
     capacity_reservation_creation_enabled     = optional(bool)
     capacity_reservation_sku                  = optional(string)
     capacity_reservation_group_name           = optional(string)
