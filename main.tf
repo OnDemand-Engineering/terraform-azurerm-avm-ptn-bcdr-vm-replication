@@ -258,7 +258,7 @@ resource "azapi_resource" "replicated_vm" {
       providerSpecificDetails = {
         instanceType                       = "A2A"
         autoProtectionOfDataDisk           = each.value.auto_protection_of_data_disk
-        fabricObjectId                     = azurerm_site_recovery_fabric.fabric[local.region.source].id
+        fabricObjectId                     = each.value.virtual_machine_resource_id
         churnOptionSelected                = each.value.churn_option_selected
         multiVmGroupName                   = each.value.multi_vm_group_name
         recoveryAvailabilitySetId          = each.value.target_availability_set_id
