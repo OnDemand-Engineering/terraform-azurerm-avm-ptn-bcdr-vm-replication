@@ -90,15 +90,15 @@ variable "replicated_virtual_machines" {
     target_resource_group_id     = string
     source_network_id            = string
     target_network_id            = string
-    target_subnet_name = string
+    target_subnet_name           = string
     churn_option_selected        = optional(string, "Normal")
     auto_protection_of_data_disk = optional(string, "Enabled")
-    managed_disks = list(object({
+    managed_disks = optional(list(object({
       disk_id                       = string
       disk_type                     = string
       replica_disk_type             = string
       target_disk_encryption_set_id = optional(string)
-    }))
+    })), [])
     capacity_reservation_creation_enabled     = optional(bool)
     capacity_reservation_sku                  = optional(string)
     capacity_reservation_group_name           = optional(string)
