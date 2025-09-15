@@ -266,7 +266,7 @@ resource "azapi_resource" "replicated_vm" {
         recoveryAzureNetworkId             = each.value.target_network_id
         recoveryBootDiagStorageAccountId   = each.value.target_boot_diagnostic_storage_account_id
         recoveryCapacityReservationGroupId = each.value.capacity_reservation_creation_enabled == true ? azurerm_capacity_reservation.per_vm[each.key].capacity_reservation_group_id : null
-        recoveryContainerId                = azurerm_site_recovery_protection_container.target[local.region.target].id
+        recoveryContainerId                = azurerm_site_recovery_protection_container.target.id
         recoveryProximityPlacementGroupId  = each.value.target_proximity_placement_group_id
         recoveryResourceGroupId            = each.value.target_resource_group_id
         recoverySubnetName                 = each.value.target_subnet_name
