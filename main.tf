@@ -271,7 +271,7 @@ resource "azapi_resource" "replicated_vm" {
         recoveryResourceGroupId            = each.value.target_resource_group_id
         recoverySubnetName                 = each.value.target_subnet_name
         recoveryVirtualMachineScaleSetId   = each.value.target_virtual_machine_scale_set_id
-        vmManagedDisks = [
+        vmManagedDisks = each.value.managed_disks != null ? [
           for disk in each.value.managed_disks : {
             diskId                              = disk.disk_id
             primaryStagingAzureStorageAccountId = var.storage_account_creation_enabled ? azurerm_storage_account.staging[0].id : provider::azapi::build_resource_id("/subscriptions/${data.azapi_client_config.current.subscription_id}/resourceGroups/${coalesce(var.storage_account_resource_group_name, var.recovery_services_vault_resource_group_name)}", "Microsoft.Storage/storageAccounts", var.storage_account_name)
@@ -279,7 +279,7 @@ resource "azapi_resource" "replicated_vm" {
             recoveryReplicaDiskAccountType      = disk.replica_disk_type
             recoveryTargetDiskAccountType       = disk.disk_type
           }
-        ]
+        ] : null
       }
     }
   }
