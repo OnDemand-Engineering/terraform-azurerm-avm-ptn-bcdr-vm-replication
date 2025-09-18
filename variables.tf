@@ -1,9 +1,4 @@
-variable "enable_telemetry" {
-  description = "Enable telemetry for the module."
-  type        = bool
-  default     = false
-
-}
+# Location Configuration
 variable "source_location" {
   type        = string
   description = "The source Azure region where the VM is located."
@@ -14,78 +9,92 @@ variable "target_location" {
   description = "The Azure Region for the target resources."
 }
 
-
-
 # Vault Configuration
-variable "use_existing_vault" {
+variable "recovery_services_vault_creation_enabled" {
   type        = bool
-  description = "Set to true if using an existing Recovery Services Vault."
   default     = false
+  description = "A boolean flag to determine whether to deploy the Azure Recovery Services Vault or not."
+  nullable    = false
 }
 
-# Resource Group Configuration
-variable "vault_resource_group_name" {
+variable "recovery_services_vault_resource_group_name" {
   type        = string
   description = "The name of the resource group where the target vault exists."
-
 }
 
-
-
-
-variable "vault_name" {
+variable "recovery_services_vault_name" {
   type        = string
   description = "Name of the Recovery Services Vault to be created, if not using an existing one."
-  default     = ""
+
+  validation {
+    condition     = var.recovery_services_vault_creation_enabled == false || (var.recovery_services_vault_creation_enabled == true && length(var.recovery_services_vault_name) >= 3 && length(var.recovery_services_vault_name) <= 50)
+    error_message = "When recovery_services_vault_creation_enabled is true, recovery_services_vault_name must be between 3 and 50 characters."
+  }
 }
 
-variable "capacity_reservation_target_sku" {
-  type        = string
-  description = "The SKU of the capacity reservation to be created."
-  default     = ""
+variable "azurerm_site_recovery_fabric_name" {
+  description = "Name for the fabric to ensure uniqueness."
+  type = object({
+    source = string
+    target = string
+  })
+  default = null
 
+  validation {
+    condition     = var.azurerm_site_recovery_fabric_name == null || (var.azurerm_site_recovery_fabric_name != null && length(var.azurerm_site_recovery_fabric_name.source) >= 3 && length(var.azurerm_site_recovery_fabric_name.source) <= 50 && length(var.azurerm_site_recovery_fabric_name.target) >= 3 && length(var.azurerm_site_recovery_fabric_name.target) <= 50)
+    error_message = "When azurerm_site_recovery_fabric_name is provided, both source and target names must be between 3 and 50 characters."
+  }
 }
 
+variable "azurerm_site_recovery_protection_container" {
+  description = "Name for the fabric to ensure uniqueness."
+  type = object({
+    source = string
+    target = string
+  })
+  default = {
+    source = "primary-protection-container"
+    target = "secondary-protection-container"
+  }
 
-
-variable "target_vnet_name" {
-  type        = string
-  description = "The name of the target virtual network to be created if not using an existing one."
-  default     = ""
+  validation {
+    condition     = var.azurerm_site_recovery_protection_container == null || (var.azurerm_site_recovery_protection_container != null && length(var.azurerm_site_recovery_protection_container.source) >= 3 && length(var.azurerm_site_recovery_protection_container.source) <= 50 && length(var.azurerm_site_recovery_protection_container.target) >= 3 && length(var.azurerm_site_recovery_protection_container.target) <= 50)
+    error_message = "When azurerm_site_recovery_protection_container is provided, both source and target names must be between 3 and 50 characters."
+  }
 }
 
-variable "target_vnet_address_space" {
-  type        = list(string)
-  description = "The address space of the target virtual network to be created, if required."
-  default     = []
+# Recovery Policy Configuration
+variable "virtual_machine_replication_policies" {
+  description = "Virtual machine replication policies"
+  type = list(object({
+    name                                               = string
+    recovery_point_retention_in_days                   = optional(number, 1)
+    application_consistent_snapshot_frequency_in_hours = optional(number, 4)
+  }))
+  default = [{
+    name = "24-hour-retention-policy"
+  }]
+
+  validation {
+    condition     = length(var.virtual_machine_replication_policies) > 0 && alltrue([for policy in var.virtual_machine_replication_policies : length(policy.name) >= 3 && length(policy.name) <= 50 && (policy.recovery_point_retention_in_days == null || (policy.recovery_point_retention_in_days != null && policy.recovery_point_retention_in_days >= 1 && policy.recovery_point_retention_in_days <= 720)) && (policy.application_consistent_snapshot_frequency_in_hours == null || (policy.application_consistent_snapshot_frequency_in_hours != null && policy.application_consistent_snapshot_frequency_in_hours >= 0 && policy.application_consistent_snapshot_frequency_in_hours <= 24))])
+    error_message = "Each replication policy must have a name between 3 and 50 characters. If provided, recovery_point_retention_in_days must be between 1 and 720, and application_consistent_snapshot_frequency_in_hours must be between 0 and 24."
+  }
 }
 
-
-
-
-variable "target_subnet_name" {
-  type        = string
-  description = "The name of the target subnet to be created if not using an existing one."
-  default     = ""
-}
-
-variable "target_subnet_address_prefix" {
-  type        = string
-  description = "The address prefix for the target subnet, if not using an existing one."
-  default     = ""
-}
-variable "replicated_vms" {
+# Replicated VMs Configuration
+variable "replicated_virtual_machines" {
   description = "A map of virtual machines to replicate, with their corresponding configuration."
   type = map(object({
-    vm_id                                 = string
-    target_resource_group_id              = string
-    source_network_id                     = string
-    target_network_id                     = string
+    virtual_machine_resource_id = string
+    replication_policy_name     = string
+    target_resource_group_id    = string
+    source_network_id           = string
+    target_network_id           = string
     managed_disks = list(object({
-      disk_id                            = string
-      disk_type                          = string
-      replica_disk_type                  = string
-      target_disk_encryption_set_id      = optional(string)
+      disk_id                       = string
+      disk_type                     = string
+      replica_disk_type             = string
+      target_disk_encryption_set_id = optional(string)
     }))
     network_interfaces = list(object({
       network_interface_id               = string
@@ -96,19 +105,28 @@ variable "replicated_vms" {
       failover_test_subnet_name          = optional(string)
       failover_test_public_ip_address_id = optional(string)
     }))
-    create_capacity_reservation          = optional(bool)
-    capacity_reservation_sku             = optional(string)
-    capacity_reservation_group_name      = optional(string)
-    target_availability_set_id           = optional(string)
-    target_zone                         = optional(string)
-    target_edge_zone                    = optional(string)
-    target_proximity_placement_group_id = optional(string)
+    capacity_reservation_creation_enabled     = optional(bool)
+    capacity_reservation_sku                  = optional(string)
+    capacity_reservation_group_name           = optional(string)
+    target_availability_set_id                = optional(string)
+    target_zone                               = optional(string)
+    target_edge_zone                          = optional(string)
+    target_proximity_placement_group_id       = optional(string)
     target_boot_diagnostic_storage_account_id = optional(string)
-    target_virtual_machine_scale_set_id = optional(string)
-    test_network_id                     = optional(string)
-    multi_vm_group_name                 = optional(string)
+    target_virtual_machine_scale_set_id       = optional(string)
+    test_network_id                           = optional(string)
+    multi_vm_group_name                       = optional(string)
   }))
+  default = {}
 }
+
+# Capacity Reservation Group Configuration
+variable "capacity_reservation_group_creation_enabled" {
+  description = "Defines whether capacity reservation group should be created."
+  type        = bool
+  default     = false
+}
+
 variable "existing_capacity_reservation_group_id" {
   description = "The ID of an existing capacity reservation group to use. Leave empty if creating a new one."
   type        = string
@@ -119,123 +137,54 @@ variable "capacity_reservation_group_name" {
   description = "The name for a new capacity reservation group common for all replicated VMs."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.capacity_reservation_group_creation_enabled == false || (var.capacity_reservation_group_creation_enabled == true && length(var.capacity_reservation_group_name) >= 3 && length(var.capacity_reservation_group_name) <= 50)
+    error_message = "When capacity_reservation_group_creation_enabled is true, capacity_reservation_group_name must be between 3 and 50 characters."
+  }
 }
 
-
-
-# Recovery Policy Configuration
-variable "recovery_point_retention_in_minutes" {
-  type        = number
-  description = "The duration in minutes for which the recovery points need to be stored."
+# Site Mobility Extension Automatic Update Configuration
+variable "automatic_update" {
+  description = "Enable or disable automatic update of site mobility extension"
+  type        = bool
+  default     = true
 }
 
-variable "application_consistent_snapshot_frequency_in_minutes" {
-  type        = number
-  description = "The frequency in minutes at which application-consistent snapshots are taken."
-}
-
-variable "tags" {
-  type        = map(string)
-  description = "A map of tags to apply to all resources."
-  default     = {}
-}
-
-
-variable "replicated_vm_name" {
-  description = "Name of the replicated VM"
-  default     = "replicated-vm"
-}
-variable "target_availability_set_id" {
+variable "automation_account_id" {
+  description = "automation account id"
   type        = string
-  description = "Id of availability set that the new VM should belong to when a failover is done."
   default     = null
+
+  validation {
+    condition     = var.automatic_update == false || (var.automatic_update == true && var.automation_account_id != null && var.automation_account_id != "")
+    error_message = "When automatic_update is set to true, automation_account_id must be provided and not be empty."
+  }
 }
 
-variable "target_zone" {
-  type        = string
-  description = "Specifies the Availability Zone where the Failover VM should exist."
-  default     = null
-}
-
-variable "target_edge_zone" {
-  type        = string
-  description = "Specifies the Edge Zone within the Azure Region where this Managed Kubernetes Cluster should exist."
-  default     = null
-}
-
-variable "target_proximity_placement_group_id" {
-  type        = string
-  description = "Id of Proximity Placement Group the new VM should belong to when a failover is done."
-  default     = null
-}
-
-variable "target_boot_diagnostic_storage_account_id" {
-  type        = string
-  description = "Id of the storage account which the new VM should used for boot diagnostic when a failover is done."
-  default     = null
-}
-
-
-
-variable "target_virtual_machine_scale_set_id" {
-  type        = string
-  description = "Id of the Virtual Machine Scale Set which the new Vm should belong to when a failover is done."
-  default     = null
-}
-
-
-
-variable "test_network_id" {
-  type        = string
-  description = "Network to use when a test failover is done."
-  default     = null
-}
-
-variable "multi_vm_group_name" {
-  type        = string
-  description = "Name of group in which all machines will replicate together and have shared crash consistent and app-consistent recovery points when failed over."
-  default     = null
-}
-
-
-
-variable "network_interface_target_static_ip" {
-  type        = string
-  description = "Static IP to assign when a failover is done."
-  default     = null
-}
-
-variable "network_interface_recovery_public_ip_address_id" {
-  type        = string
-  description = "Id of the public IP object to use when a failover is done."
-  default     = null
-}
-
-variable "network_interface_failover_test_static_ip" {
-  type        = string
-  description = "Static IP to assign when a test failover is done."
-  default     = null
-}
-
-variable "network_interface_failover_test_subnet_name" {
-  type        = string
-  description = "Name of the subnet to use when a test failover is done."
-  default     = null
-}
-
-variable "network_interface_failover_test_public_ip_address_id" {
-  type        = string
-  description = "Id of the public IP object to use when a test failover is done."
-  default     = null
-}
-
-variable "enable_capacity_reservation" {
-  description = "Defines whether capacity reservation should be created."
+# Staging Storage Account Configuration
+variable "storage_account_creation_enabled" {
+  description = "Defines whether a storage account should be created."
   type        = bool
   default     = false
 }
 
+variable "storage_account_name" {
+  description = "The name of the storage account to use for staging."
+  type        = string
+  default     = null
 
+  validation {
+    condition     = var.storage_account_creation_enabled == false || (var.storage_account_creation_enabled == true && length(var.storage_account_name) >= 3 && length(var.storage_account_name) <= 24 && can(regex("^[a-z0-9]+$", var.storage_account_name)))
+    error_message = "When storage_account_creation_enabled is true, storage_account_name must be between 3 and 24 characters and contain only lowercase letters and numbers."
+  }
+}
+
+variable "storage_account_resource_group_name" {
+  description = "The name of the resource group containing the storage account. Optional, if blank uses the recovery services vault resource group."
+  type        = string
+  default     = null
+}
 
 variable "staging_replication_type" {
   description = "The replication type for the staging storage account."
@@ -243,31 +192,15 @@ variable "staging_replication_type" {
   default     = "LRS"
 }
 
-variable "target_resource_group_name" {
-  description = "The name of the resource group in which the target replicarted resources will be created."
-  type        = string
-  default     = ""
-}
-
-variable "bcdr_subscription" {
-  description = "The subscription ID for the bcdr resources."
-  type        = string
-  default     = ""
-}
-variable "target_subscription" {
-  description = "The subscription ID for the target resources."
-  type        = string
-  default     = ""
-}
-
-variable "environment" {
-  description = "The environment for the resources."
-  type        = string
-  default     = "prod"
-}
-
-variable "create_capacity_reservation_group" {
-  description = "Defines whether capacity reservation group should be created."
+# Management
+variable "enable_telemetry" {
+  description = "Enable telemetry for the module."
   type        = bool
   default     = false
+}
+
+variable "tags" {
+  type        = map(string)
+  description = "A map of tags to apply to all resources."
+  default     = {}
 }

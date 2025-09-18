@@ -13,7 +13,7 @@ resource "azurerm_resource_group_template_deployment" "telemetry" {
   name                = local.telem_arm_deployment_name
 
 
-  resource_group_name = var.target_resource_group_name
+  resource_group_name = var.recovery_services_vault_resource_group_name
   tags                = {}
   template_content    = local.telem_arm_template_content
 }
