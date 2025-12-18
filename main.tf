@@ -221,8 +221,6 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
     }
   }
 
-  unmanaged_disk = null
-
   dynamic "network_interface" {
     for_each = { for nic in each.value.network_interfaces : nic.network_interface_id => nic }
 
@@ -244,4 +242,10 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
   }
 
   depends_on = [azurerm_site_recovery_network_mapping.network_mapping]
+
+  lifecycle {
+    ignore_changes = [
+      unmanaged_disk
+    ]
+  }
 }
