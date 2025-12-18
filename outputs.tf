@@ -96,7 +96,7 @@ output "individual_capacity_reservation_ids" {
   description = "The IDs of individual capacity reservations if they are created per VM."
   value = {
     for vm_name, vm in var.replicated_virtual_machines :
-    vm_name => (vm.create_capacity_reservation == true && can(azurerm_capacity_reservation.per_vm[vm_name]))
+    vm_name => (vm.capacity_reservation_creation_enabled == true && can(azurerm_capacity_reservation.per_vm[vm_name]))
     ? azurerm_capacity_reservation.per_vm[vm_name].id
     : ""
   }
