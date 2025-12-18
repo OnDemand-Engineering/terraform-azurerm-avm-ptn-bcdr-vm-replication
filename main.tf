@@ -187,7 +187,7 @@ resource "azurerm_capacity_reservation" "per_vm" {
 resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
   for_each = var.replicated_virtual_machines
 
-  name                                      = each.key
+  name                                      = provider::azapi::parse_resource_id("Microsoft.Compute/virtualMachines", each.value.virtual_machine_resource_id).name
   resource_group_name                       = var.recovery_services_vault_resource_group_name
   recovery_vault_name                       = local.recovery_services_vault_name
   source_recovery_fabric_name               = azurerm_site_recovery_fabric.fabric[local.region.source].name
@@ -220,6 +220,8 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
       target_disk_encryption_set_id = managed_disk.value.target_disk_encryption_set_id
     }
   }
+
+  unmanaged_disk = null
 
   dynamic "network_interface" {
     for_each = { for nic in each.value.network_interfaces : nic.network_interface_id => nic }
