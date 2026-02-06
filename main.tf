@@ -137,15 +137,15 @@ resource "azurerm_storage_account" "staging" {
 
 resource "azurerm_site_recovery_network_mapping" "network_mapping" {
   # Only create network mapping if the source and target locations are different
-  count = var.source_location != var.target_location ? length(local.network_mapping_names) : 0
+  for_each = var.source_location != var.target_location ? local.network_mapping_names : {}
 
-  name                        = local.network_mapping_names[count.index]
+  name                        = each.value
   resource_group_name         = azurerm_recovery_services_vault.vault[0].resource_group_name
   recovery_vault_name         = azurerm_recovery_services_vault.vault[0].name
   source_recovery_fabric_name = azurerm_site_recovery_fabric.fabric[local.region.source].name
   target_recovery_fabric_name = azurerm_site_recovery_fabric.fabric[local.region.target].name
-  source_network_id           = var.replicated_virtual_machines[local.network_mapping_names[count.index]].source_network_id
-  target_network_id           = var.replicated_virtual_machines[local.network_mapping_names[count.index]].target_network_id
+  source_network_id           = var.replicated_virtual_machines[each.key].source_network_id
+  target_network_id           = var.replicated_virtual_machines[each.key].target_network_id
 }
 
 ########################################################
