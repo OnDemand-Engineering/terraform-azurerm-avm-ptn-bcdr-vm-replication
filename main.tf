@@ -225,11 +225,7 @@ resource "azurerm_site_recovery_replicated_vm" "replicated_vm" {
     for_each = { for nic in each.value.network_interfaces : nic.network_interface_id => nic }
 
     content {
-      source_network_interface_id        = provider::azapi::build_resource_id(
-        "/subscriptions/${provider::azapi::parse_resource_id("Microsoft.Network/networkInterfaces", network_interface.value.network_interface_id).subscription_id}/resourceGroups/${provider::azapi::parse_resource_id("Microsoft.Network/networkInterfaces", network_interface.value.network_interface_id).resource_group_name}",
-        "Microsoft.Network/networkInterfaces",
-        lower(provider::azapi::parse_resource_id("Microsoft.Network/networkInterfaces", network_interface.value.network_interface_id).name)
-      )
+      source_network_interface_id        = network_interface.value.network_interface_id
       target_subnet_name                 = network_interface.value.target_subnet_name
       target_static_ip                   = network_interface.value.target_static_ip
       recovery_public_ip_address_id      = network_interface.value.recovery_public_ip_address_id
